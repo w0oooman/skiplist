@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sort"
 	"testing"
+	"time"
 )
 
 type User struct {
@@ -229,6 +230,7 @@ func TestInt(t *testing.T) {
 }
 
 func TestRank(t *testing.T) {
+	t.Parallel()
 	sl := New()
 
 	for i := 1; i <= 10; i++ {
@@ -283,6 +285,51 @@ func TestRank(t *testing.T) {
 	}
 
 	// output(sl)
+}
+
+func TestGoroutine(t *testing.T) {
+	t.Parallel()
+	sl := New()
+	for range 1000 {
+		go testGoroutine(t, sl)
+	}
+
+	time.Sleep(3 * time.Second)
+}
+
+func testGoroutine(t *testing.T, sl *SkipList) {
+	for i := 1; i <= 15; i++ {
+		sl.Set(i, Int(i))
+	}
+
+	for i := 1; i <= 10; i++ {
+		if sl.GetRankByData(Int(i)) != i {
+			t.Fatal()
+		}
+	}
+
+	for i := 1; i <= 10; i++ {
+		if sl.GetElementByRank(i).Value != Int(i) {
+			t.Fatal()
+		}
+	}
+
+	sl.Set(1, Int(1))
+	res := sl.Get(1)
+	if res == nil {
+		t.Fatal()
+	}
+	if int(res.(Int)) != 1 {
+		t.Fatal()
+	}
+
+	sl.Len()
+	sl.Remove(13)
+	sl.Remove(99999)
+	sl.Back()
+	sl.Front()
+	sl.Find(Int(666))
+	sl.Find(Int(1))
 }
 
 func BenchmarkIntInsertOrder(b *testing.B) {
