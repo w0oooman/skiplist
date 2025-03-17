@@ -5,7 +5,8 @@ import (
 	"math/rand"
 	"sort"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 type User struct {
@@ -16,10 +17,12 @@ type User struct {
 // greater to less
 func (l User) Less(other interface{}) bool {
 	r := other.(*User)
+
 	return l.score > r.score || (l.score == r.score && l.id < r.id)
 }
 
 func TestKey(t *testing.T) {
+	t.Parallel()
 	sl := New()
 
 	users := []*User{
@@ -99,27 +102,27 @@ func (i Int) Less(other interface{}) bool {
 }
 
 func TestInt(t *testing.T) {
+	t.Parallel()
 	sl := New()
-	if sl.Len() != 0 || sl.Front() != nil && sl.Back() != nil {
-		t.Fatal()
-	}
+	require.Zero(t, sl.Len())
+	require.False(t, sl.Front() != nil && sl.Back() != nil)
 
 	testData := []Int{Int(1), Int(2), Int(3)}
 
 	sl.Set(1, testData[0])
-	if sl.Len() != 1 || sl.Front().Value.(Int) != testData[0] || sl.Back().Value.(Int) != testData[0] {
-		t.Fatal()
-	}
+	require.EqualValues(t, 1, sl.Len())
+	require.EqualValues(t, testData[0], sl.Front().Value.(Int))
+	require.EqualValues(t, testData[0], sl.Back().Value.(Int))
 
 	sl.Set(2, testData[2])
-	if sl.Len() != 2 || sl.Front().Value.(Int) != testData[0] || sl.Back().Value.(Int) != testData[2] {
-		t.Fatal()
-	}
+	require.EqualValues(t, 2, sl.Len())
+	require.EqualValues(t, testData[0], sl.Front().Value.(Int))
+	require.EqualValues(t, testData[2], sl.Back().Value.(Int))
 
 	sl.Set(3, testData[1])
-	if sl.Len() != 3 || sl.Front().Value.(Int) != testData[0] || sl.Back().Value.(Int) != testData[2] {
-		t.Fatal()
-	}
+	require.EqualValues(t, 3, sl.Len())
+	require.EqualValues(t, testData[0], sl.Front().Value.(Int))
+	require.EqualValues(t, testData[2], sl.Back().Value.(Int))
 
 	sl.Set(4, Int(-999))
 	sl.Set(5, Int(-888))
@@ -140,9 +143,8 @@ func TestInt(t *testing.T) {
 	}
 
 	e := sl.Find(Int(2))
-	if e == nil || e.Value.(Int) != 2 {
-		t.Fatal()
-	}
+	require.NotNil(t, e)
+	require.EqualValues(t, 2, e.Value.(Int))
 
 	ret = make([]Int, 0)
 	for ; e != nil; e = e.Next() {
@@ -291,10 +293,11 @@ func TestGoroutine(t *testing.T) {
 	t.Parallel()
 	sl := New()
 	for range 1000 {
-		go testGoroutine(t, sl)
+		t.Run("test skip list in goroutine", func(t *testing.T) {
+			t.Parallel()
+			testGoroutine(t, sl)
+		})
 	}
-
-	time.Sleep(3 * time.Second)
 }
 
 func testGoroutine(t *testing.T, sl *SkipList) {
@@ -432,7 +435,7 @@ func BenchmarkIntRankRandom(b *testing.B) {
 
 func output(sl *SkipList) {
 	var x *Element
-	for i := 0; i < SKIPLIST_MAXLEVEL; i++ {
+	for i := 0; i < SkipListMaxLevel; i++ {
 		fmt.Printf("LEVEL[%v]: ", i)
 		count := 0
 		x = sl.header.level[i].forward

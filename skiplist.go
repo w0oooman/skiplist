@@ -20,10 +20,10 @@ type SkipList struct {
 // New returns an initialized skiplist.
 func New() *SkipList {
 	return &SkipList{
-		header:     newElement(SKIPLIST_MAXLEVEL, 0, nil),
+		header:     newElement(SkipListMaxLevel, 0, nil),
 		tail:       nil,
-		update:     make([]*Element, SKIPLIST_MAXLEVEL),
-		rank:       make([]int, SKIPLIST_MAXLEVEL),
+		update:     make([]*Element, SkipListMaxLevel),
+		rank:       make([]int, SkipListMaxLevel),
 		length:     0,
 		level:      1,
 		elementMap: make(map[interface{}]*Element),
@@ -32,10 +32,10 @@ func New() *SkipList {
 
 // Init initializes or clears skiplist sl.
 func (sl *SkipList) Init() *SkipList {
-	sl.header = newElement(SKIPLIST_MAXLEVEL, 0, nil)
+	sl.header = newElement(SkipListMaxLevel, 0, nil)
 	sl.tail = nil
-	sl.update = make([]*Element, SKIPLIST_MAXLEVEL)
-	sl.rank = make([]int, SKIPLIST_MAXLEVEL)
+	sl.update = make([]*Element, SkipListMaxLevel)
+	sl.rank = make([]int, SkipListMaxLevel)
 	sl.length = 0
 	sl.level = 1
 	sl.elementMap = make(map[interface{}]*Element)
@@ -237,6 +237,7 @@ func (sl *SkipList) Get(key interface{}) Interface {
 	if elem, ok := sl.elementMap[key]; ok && elem != nil {
 		return elem.Value
 	}
+
 	return nil
 }
 
@@ -244,6 +245,7 @@ func (sl *SkipList) getElement(key interface{}) *Element {
 	if elem, ok := sl.elementMap[key]; ok && elem != nil {
 		return elem
 	}
+
 	return nil
 }
 
@@ -256,6 +258,7 @@ func (sl *SkipList) GetRank(key interface{}) int {
 	if elem != nil {
 		return sl.getRankByData(elem.Value)
 	}
+
 	return 0
 }
 
@@ -269,6 +272,7 @@ func (sl *SkipList) getRankByData(v Interface) int {
 		}
 		if x.level[i].forward != nil && !x.level[i].forward.Value.Less(v) && !v.Less(x.level[i].forward.Value) {
 			rank += x.level[i].span
+
 			return rank
 		}
 	}
