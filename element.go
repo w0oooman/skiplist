@@ -4,8 +4,8 @@ import (
 	"math/rand"
 )
 
-const SKIPLIST_MAXLEVEL = 32
-const SKIPLIST_BRANCH = 2
+const SkipListMaxLevel = 32
+const SkipListBranch = 2
 
 type skiplistLevel struct {
 	forward *Element
@@ -43,13 +43,14 @@ func newElement(level int, k interface{}, v Interface) *Element {
 func randomLevel() int {
 	level := 1
 	for {
-		if rand.Int31n(SKIPLIST_BRANCH) == 0 {
+		if rand.Int31n(SkipListBranch) == 0 {
 			break
 		}
 		level++
-		if level >= SKIPLIST_MAXLEVEL {
+		if level >= SkipListMaxLevel {
 			break
 		}
 	}
+
 	return level
 }

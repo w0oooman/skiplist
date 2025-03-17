@@ -1,5 +1,7 @@
 package skiplist
 
+import "sync"
+
 type Interface interface {
 	Less(other interface{}) bool
 }
@@ -12,15 +14,16 @@ type SkipList struct {
 	length     int
 	level      int
 	elementMap map[interface{}]*Element
+	mutex      sync.RWMutex
 }
 
 // New returns an initialized skiplist.
 func New() *SkipList {
 	return &SkipList{
-		header:     newElement(SKIPLIST_MAXLEVEL, 0, nil),
+		header:     newElement(SkipListMaxLevel, 0, nil),
 		tail:       nil,
-		update:     make([]*Element, SKIPLIST_MAXLEVEL),
-		rank:       make([]int, SKIPLIST_MAXLEVEL),
+		update:     make([]*Element, SkipListMaxLevel),
+		rank:       make([]int, SkipListMaxLevel),
 		length:     0,
 		level:      1,
 		elementMap: make(map[interface{}]*Element),
@@ -29,13 +32,14 @@ func New() *SkipList {
 
 // Init initializes or clears skiplist sl.
 func (sl *SkipList) Init() *SkipList {
-	sl.header = newElement(SKIPLIST_MAXLEVEL, 0, nil)
+	sl.header = newElement(SkipListMaxLevel, 0, nil)
 	sl.tail = nil
-	sl.update = make([]*Element, SKIPLIST_MAXLEVEL)
-	sl.rank = make([]int, SKIPLIST_MAXLEVEL)
+	sl.update = make([]*Element, SkipListMaxLevel)
+	sl.rank = make([]int, SkipListMaxLevel)
 	sl.length = 0
 	sl.level = 1
 	sl.elementMap = make(map[interface{}]*Element)
+
 	return sl
 }
 
@@ -46,17 +50,25 @@ func (sl *SkipList) Front() *Element {
 
 // Back returns the last elements of skiplist sl or nil.
 func (sl *SkipList) Back() *Element {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+
 	return sl.tail
 }
 
 // Len returns the numbler of elements of skiplist sl.
 func (sl *SkipList) Len() int {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+
 	return sl.length
 }
 
 // Insert inserts v, increments sl.length, and returns a new element of wrap v.
 func (sl *SkipList) Set(k interface{}, v Interface) *Element {
-	sl.Remove(k)
+	sl.mutex.Lock()
+	defer sl.mutex.Unlock()
+	sl.remove(k)
 	x := sl.header
 	for i := sl.level - 1; i >= 0; i-- {
 		// store rank that is crossed to reach the insert position
@@ -123,7 +135,7 @@ func (sl *SkipList) deleteElement(e *Element, update []*Element) {
 			update[i].level[i].span += e.level[i].span - 1
 			update[i].level[i].forward = e.level[i].forward
 		} else {
-			update[i].level[i].span -= 1
+			update[i].level[i].span--
 		}
 	}
 
@@ -141,12 +153,30 @@ func (sl *SkipList) deleteElement(e *Element, update []*Element) {
 	delete(sl.elementMap, e.key)
 }
 
+func (sl *SkipList) remove(key interface{}) interface{} {
+	e := sl.getElement(key)
+	if e != nil {
+		return sl.removeByElement(e)
+	}
+
+	return nil
+}
+
 // Remove removes e from sl if e is an element of skiplist sl.
 // It returns the element value e.Value.
 func (sl *SkipList) Remove(key interface{}) interface{} {
-	e := sl.getElement(key)
-	if e != nil {
-		return sl.RemoveByElement(e)
+	sl.mutex.Lock()
+	defer sl.mutex.Unlock()
+
+	return sl.remove(key)
+}
+
+func (sl *SkipList) removeByElement(e *Element) interface{} {
+	x := sl.find(e.Value)                 // x.Value >= e.Value
+	if x == e && !e.Value.Less(x.Value) { // e.Value >= x.Value
+		sl.deleteElement(x, sl.update)
+
+		return x.Value
 	}
 
 	return nil
@@ -155,20 +185,20 @@ func (sl *SkipList) Remove(key interface{}) interface{} {
 // Remove removes e from sl if e is an element of skiplist sl.
 // It returns the element value e.Value.
 func (sl *SkipList) RemoveByElement(e *Element) interface{} {
-	x := sl.find(e.Value)                 // x.Value >= e.Value
-	if x == e && !e.Value.Less(x.Value) { // e.Value >= x.Value
-		sl.deleteElement(x, sl.update)
-		return x.Value
-	}
+	sl.mutex.Lock()
+	defer sl.mutex.Unlock()
 
-	return nil
+	return sl.removeByElement(e)
 }
 
 // Delete deletes an element e that e.Value == v, and returns e.Value or nil.
 func (sl *SkipList) RemoveByData(v Interface) interface{} {
+	sl.mutex.Lock()
+	defer sl.mutex.Unlock()
 	x := sl.find(v)                   // x.Value >= v
 	if x != nil && !v.Less(x.Value) { // v >= x.Value
 		sl.deleteElement(x, sl.update)
+
 		return x.Value
 	}
 
@@ -177,6 +207,8 @@ func (sl *SkipList) RemoveByData(v Interface) interface{} {
 
 // Find finds an element e that e.Value == v, and returns e or nil.
 func (sl *SkipList) Find(v Interface) *Element {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
 	x := sl.find(v)                   // x.Value >= v
 	if x != nil && !v.Less(x.Value) { // v >= x.Value
 		return x
@@ -200,9 +232,12 @@ func (sl *SkipList) find(v Interface) *Element {
 
 // get data by key
 func (sl *SkipList) Get(key interface{}) Interface {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
 	if elem, ok := sl.elementMap[key]; ok && elem != nil {
 		return elem.Value
 	}
+
 	return nil
 }
 
@@ -210,23 +245,24 @@ func (sl *SkipList) getElement(key interface{}) *Element {
 	if elem, ok := sl.elementMap[key]; ok && elem != nil {
 		return elem
 	}
+
 	return nil
 }
 
 // GetRank finds then rank for key
 // O(lgn)
 func (sl *SkipList) GetRank(key interface{}) int {
-	if elem := sl.getElement(key); elem != nil {
-		return sl.GetRankByData(elem.Value)
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+	elem := sl.getElement(key)
+	if elem != nil {
+		return sl.getRankByData(elem.Value)
 	}
+
 	return 0
 }
 
-// GetRankByData finds the rank for an element e that e.Value == v,
-// Returns 0 when the element cannot be found, rank otherwise.
-// Note that the rank is 1-based due to the span of sl.header to the first element.
-// O(lgn)
-func (sl *SkipList) GetRankByData(v Interface) int {
+func (sl *SkipList) getRankByData(v Interface) int {
 	x := sl.header
 	rank := 0
 	for i := sl.level - 1; i >= 0; i-- {
@@ -236,6 +272,7 @@ func (sl *SkipList) GetRankByData(v Interface) int {
 		}
 		if x.level[i].forward != nil && !x.level[i].forward.Value.Less(v) && !v.Less(x.level[i].forward.Value) {
 			rank += x.level[i].span
+
 			return rank
 		}
 	}
@@ -243,10 +280,23 @@ func (sl *SkipList) GetRankByData(v Interface) int {
 	return 0
 }
 
+// GetRankByData finds the rank for an element e that e.Value == v,
+// Returns 0 when the element cannot be found, rank otherwise.
+// Note that the rank is 1-based due to the span of sl.header to the first element.
+// O(lgn)
+func (sl *SkipList) GetRankByData(v Interface) int {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+
+	return sl.getRankByData(v)
+}
+
 // GetDataByRank finds an element by ites rank. The rank argument needs bo be 1-based.
 // Note that is the first element e that GetRank(e.Value) == rank, and returns e or nil.
 // O(lgn)
 func (sl *SkipList) GetElementByRank(rank int) *Element {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
 	x := sl.header
 	traversed := 0
 	for i := sl.level - 1; i >= 0; i-- {
