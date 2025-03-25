@@ -333,6 +333,15 @@ func testGoroutine(t *testing.T, sl *SkipList) {
 	sl.Front()
 	sl.Find(Int(666))
 	sl.Find(Int(1))
+	e := sl.Front()
+	list := sl.TopN(-1)
+	value := list[0].Value.(Int)
+	for i := 1; i < len(list); i++ {
+		if value+1 != list[i].Value.(Int) {
+			t.Fatal()
+		}
+		value = list[i].Value.(Int)
+	}
 }
 
 func BenchmarkIntInsertOrder(b *testing.B) {

@@ -297,6 +297,11 @@ func (sl *SkipList) GetRankByData(v Interface) int {
 func (sl *SkipList) GetElementByRank(rank int) *Element {
 	sl.mutex.RLock()
 	defer sl.mutex.RUnlock()
+
+	return sl.getElementByRank(rank)
+}
+
+func (sl *SkipList) getElementByRank(rank int) *Element {
 	x := sl.header
 	traversed := 0
 	for i := sl.level - 1; i >= 0; i-- {
@@ -310,4 +315,39 @@ func (sl *SkipList) GetElementByRank(rank int) *Element {
 	}
 
 	return nil
+}
+
+// n: <= 0: fetch all data
+func (sl *SkipList) Fetch(from, to int) []*Element {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+	e := sl.getElementByRank(from)
+	if e == nil {
+		return nil
+	}
+	n := to - from + 1
+	res := make([]*Element, 0, min(sl.length, n))
+	for ; n > 0 && e != nil; n-- {
+		res = append(res, e)
+		e = e.Next()
+	}
+
+	return res
+}
+
+// n: <= 0: fetch all data
+func (sl *SkipList) TopN(n int) []*Element {
+	sl.mutex.RLock()
+	defer sl.mutex.RUnlock()
+	if n <= 0 {
+		n = sl.length
+	}
+	res := make([]*Element, 0, min(sl.length, n))
+	e := t.Front()
+	for ; n > 0 && e != nil; n-- {
+		res = append(res, e)
+		e = e.Next()
+	}
+
+	return res
 }
