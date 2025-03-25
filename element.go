@@ -4,8 +4,10 @@ import (
 	"math/rand"
 )
 
-const SkipListMaxLevel = 32
-const SkipListBranch = 2
+const (
+	SkipListMaxLevel = 32
+	SkipListBranch   = 2
+)
 
 type skiplistLevel struct {
 	forward *Element

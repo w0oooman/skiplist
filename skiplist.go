@@ -343,7 +343,7 @@ func (sl *SkipList) TopN(n int) []*Element {
 		n = sl.length
 	}
 	res := make([]*Element, 0, min(sl.length, n))
-	e := t.Front()
+	e := sl.Front()
 	for ; n > 0 && e != nil; n-- {
 		res = append(res, e)
 		e = e.Next()

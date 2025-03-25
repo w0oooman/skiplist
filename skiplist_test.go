@@ -333,6 +333,7 @@ func testGoroutine(t *testing.T, sl *SkipList) {
 	sl.Front()
 	sl.Find(Int(666))
 	sl.Find(Int(1))
+
 	e := sl.Front()
 	list := sl.TopN(-1)
 	value := list[0].Value.(Int)
